@@ -63,7 +63,7 @@ function MakeContextCallback(name: "user" | "channel"): NavContextMenuPatchCallb
 
         children.push(
             <Menu.MenuItem
-                id={`vc-quick-chat-${name}`}
+                id={`vc-sidebar-chat-${name}`}
                 label={`Open ${isUser ? "User" : "Channel"} Sidebar Chat`}
                 action={() => {
                     FluxDispatcher.dispatch({
