@@ -10,6 +10,7 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { filters, findByPropsLazy, findComponentByCodeLazy, mapMangledModuleLazy } from "@webpack";
 import {
+    ChannelRouter,
     ChannelStore,
     FluxDispatcher,
     Icons,
@@ -17,12 +18,15 @@ import {
     MessageActions,
     PermissionsBits,
     PermissionStore,
-    Text,
+    SelectedChannelStore,
     useEffect,
     UserStore,
-    useState
+    useStateFromStores
 } from "@webpack/common";
 import { Channel, User } from "discord-types/general";
+
+import { SidebarStore } from "./store";
+
 
 const { HeaderBar, HeaderBarIcon } = mapMangledModuleLazy(".themedMobile]:", {
     HeaderBarIcon: filters.byCode('size:"custom",'),
@@ -30,18 +34,12 @@ const { HeaderBar, HeaderBarIcon } = mapMangledModuleLazy(".themedMobile]:", {
 });
 const Chat = findComponentByCodeLazy("filterAfterTimestamp:", "chatInputType");
 const Resize = findComponentByCodeLazy("sidebarType:", "homeSidebarWidth");
-const DMHeader = findComponentByCodeLazy(".cursorPointer:null,children");
-const Relationships = findByPropsLazy("ensurePrivateChannel");
-const ChatInputTypes = findByPropsLazy("FORM");
-const Sidebars = findByPropsLazy("ThreadSidebar");
+const ChannelHeader = findComponentByCodeLazy(".Messages.HUB_DIRECTORY_CHANNEL_TITLE.format({");
+const ChatInputTypes = findByPropsLazy("FORM", "NORMAL");
+const Sidebars = findByPropsLazy("ThreadSidebar", "MessageRequestSidebar");
 
-interface SidebarData {
-    isUser: boolean;
-    guildId: string;
-    id: string;
-}
 
-export interface ContextMenuProps {
+interface ContextMenuProps {
     channel: Channel;
     guildId?: string;
     user: User;
@@ -57,10 +55,12 @@ function MakeContextCallback(name: "user" | "channel"): NavContextMenuPatchCallb
         if (isUser && user.id === UserStore.getCurrentUser().id) return;
         if (!isUser && (!PermissionStore.can(PermissionsBits.VIEW_CHANNEL, channel) && channel.type !== 3)) return;
 
+        const channelTypeText = isUser ? "User" : channel.type === 3 ? "Group DM" : "Channel";
+
         children.push(
             <Menu.MenuItem
                 id={`vc-sidebar-chat-${name}`}
-                label={`Open ${isUser ? "User" : "Channel"} Sidebar Chat`}
+                label={`Open ${channelTypeText} Sidebar Chat`}
                 action={() => {
                     FluxDispatcher.dispatch({
                         // @ts-ignore
@@ -85,47 +85,24 @@ export default definePlugin({
             replacement: [
                 {
                     match: /this.renderThreadSidebar\(\),/,
-                    replace: "$&$self.renderSidebar({maxWidth:this.props.width}),"
+                    replace: "$&$self.renderSidebar({maxWidth:this.props.width,stockSidebarOpen:this.props.channelSidebarState || this.props.guildSidebarState}),"
                 }
             ]
         }
     ],
+
     contextMenus: {
         "user-context": MakeContextCallback("user"),
         "channel-context": MakeContextCallback("channel"),
         "thread-context": MakeContextCallback("channel"),
         "gdm-context": MakeContextCallback("channel"),
     },
-    renderSidebar: ErrorBoundary.wrap(({ maxWidth }: { maxWidth: number; }) => {
-        const [channel, setChannel] = useState<Channel | null>(null);
-        const [guild, setGuild] = useState<Channel | null>(null);
 
-        useEffect(() => {
-            const cb = (e: SidebarData) => {
-                const { id, guildId, isUser } = e;
-                setGuild(guildId ? ChannelStore.getChannel(guildId) : null);
-                if (!isUser) {
-                    setChannel(ChannelStore.getChannel(id));
-                    return;
-                }
-                // @ts-expect-error outdated type
-                const existingDm = ChannelStore.getDMChannelFromUserId(id);
-
-                if (existingDm) {
-                    setChannel(existingDm);
-                    return;
-                }
-
-                Relationships.ensurePrivateChannel(id).then((channelId: string) => {
-                    setChannel(ChannelStore.getChannel(channelId));
-                });
-            };
-            // @ts-ignore
-            FluxDispatcher.subscribe("NEW_SIDEBAR_CHAT", cb);
-
-            // @ts-ignore
-            return () => FluxDispatcher.unsubscribe("NEW_SIDEBAR_CHAT", cb);
-        }, []);
+    renderSidebar: ErrorBoundary.wrap(({ maxWidth, stockSidebarOpen }: { maxWidth: number, stockSidebarOpen: boolean; }) => {
+        const [guild, channel] = useStateFromStores(
+            [SidebarStore],
+            () => [SidebarStore.guild, SidebarStore.channel]
+        );
 
         useEffect(() => {
             if (channel) {
@@ -136,7 +113,7 @@ export default definePlugin({
             }
         }, [channel]);
 
-        if (!channel) return null;
+        if (!channel || stockSidebarOpen) return null;
 
         return (
             <Resize
@@ -145,23 +122,41 @@ export default definePlugin({
             >
                 <HeaderBar
                     toolbar={
-                        <HeaderBarIcon
-                            icon={Icons.XSmallIcon}
-                            tooltip="Close Sidebar Chat"
-                            onClick={() => {
-                                setChannel(null);
-                                setGuild(null);
-                            }}
-                        />
+                        <>
+                            <HeaderBarIcon
+                                icon={Icons.ArrowsLeftRightIcon}
+                                tooltip="Switch channels"
+                                onClick={() => {
+                                    const currentChannel = ChannelStore.getChannel(SelectedChannelStore.getChannelId());
+                                    FluxDispatcher.dispatch({
+                                        // @ts-ignore
+                                        type: "NEW_SIDEBAR_CHAT",
+                                        isUser: currentChannel.id === "1",
+                                        guildId: currentChannel?.guild_id,
+                                        id: currentChannel.id,
+                                    });
+                                    ChannelRouter.transitionToChannel(channel.id);
+                                }}
+                            />
+                            <HeaderBarIcon
+                                icon={Icons.XSmallIcon}
+                                tooltip="Close Sidebar Chat"
+                                onClick={() => {
+                                    FluxDispatcher.dispatch({
+                                        // @ts-ignore
+                                        type: "CLOSE_SIDEBAR_CHAT",
+                                    });
+                                }}
+                            />
+                        </>
                     }
                 >
-                    {!channel?.name && (
-                        <DMHeader
-                            level={1}
-                            channel={channel}
-                        />
-                    )}
-                    <Text>{channel?.name ?? ""}</Text>
+                    <ChannelHeader
+                        channel={channel}
+                        channelName={channel?.name}
+                        guild={guild}
+                        parentChannel={ChannelStore.getChannel(channel?.parent_id)}
+                    />
                 </HeaderBar>
                 <Chat
                     channel={channel}
