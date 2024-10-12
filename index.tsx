@@ -118,7 +118,7 @@ export default definePlugin({
         return (
             <Resize
                 sidebarType={Sidebars.MessageRequestSidebar}
-                maxWidth={maxWidth - 850}
+                maxWidth={maxWidth}
             >
                 <HeaderBar
                     toolbar={
