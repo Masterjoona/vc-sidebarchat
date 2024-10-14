@@ -55,12 +55,10 @@ function MakeContextCallback(name: "user" | "channel"): NavContextMenuPatchCallb
         if (isUser && user.id === UserStore.getCurrentUser().id) return;
         if (!isUser && (!PermissionStore.can(PermissionsBits.VIEW_CHANNEL, channel) && channel.type !== 3)) return;
 
-        const channelTypeText = isUser ? "User" : channel.type === 3 ? "Group DM" : "Channel";
-
         children.push(
             <Menu.MenuItem
                 id={`vc-sidebar-chat-${name}`}
-                label={`Open ${channelTypeText} Sidebar Chat`}
+                label={"Open Sidebar Chat"}
                 action={() => {
                     FluxDispatcher.dispatch({
                         // @ts-ignore
@@ -84,8 +82,8 @@ export default definePlugin({
             find: "Missing channel in Channel.openChannelContextMenu",
             replacement: [
                 {
-                    match: /this.renderThreadSidebar\(\),/,
-                    replace: "$&$self.renderSidebar({maxWidth:this.props.width,stockSidebarOpen:this.props.channelSidebarState || this.props.guildSidebarState}),"
+                    match: /this\.renderThreadSidebar\(\),/,
+                    replace: "$&$self.renderSidebar({width:this.props.width,stockSidebarOpen:this.props.channelSidebarState || this.props.guildSidebarState}),"
                 }
             ]
         }
@@ -98,7 +96,7 @@ export default definePlugin({
         "gdm-context": MakeContextCallback("channel"),
     },
 
-    renderSidebar: ErrorBoundary.wrap(({ maxWidth, stockSidebarOpen }: { maxWidth: number, stockSidebarOpen: any; }) => {
+    renderSidebar: ErrorBoundary.wrap(({ width, stockSidebarOpen }: { width: number, stockSidebarOpen: any; }) => {
         const [guild, channel] = useStateFromStores(
             [SidebarStore],
             () => [SidebarStore.guild, SidebarStore.channel]
@@ -118,7 +116,7 @@ export default definePlugin({
         return (
             <Resize
                 sidebarType={Sidebars.MessageRequestSidebar}
-                maxWidth={maxWidth}
+                maxWidth={width - 610}
             >
                 <HeaderBar
                     toolbar={
