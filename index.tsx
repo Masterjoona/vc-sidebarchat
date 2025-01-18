@@ -97,8 +97,24 @@ export default definePlugin({
                 match: /return(\(0,\i\.jsxs?\)\(\i\.\i,{}\))/,
                 replace: "return [$1,$self.renderSidebar()]"
             }
+        },
+        {
+            // :trolley:
+            find: ".SIDEBAR_CHAT&&null",
+            replacement: {
+                match: /this.props.channelId}\);/,
+                replace: "$&$self.setWidth(this.props.width);"
+            }
         }
     ],
+
+    setWidth: (w: number) => {
+        FluxDispatcher.dispatch({
+            // @ts-ignore
+            type: "SIDEBAR_CHAT_WIDTH",
+            width: w
+        });
+    },
 
     contextMenus: {
         "user-context": MakeContextCallback("user"),
@@ -108,9 +124,9 @@ export default definePlugin({
     },
 
     renderSidebar: ErrorBoundary.wrap(() => {
-        const [guild, channel] = useStateFromStores(
+        const [guild, channel, width] = useStateFromStores(
             [SidebarStore],
-            () => [SidebarStore.guild, SidebarStore.channel]
+            () => [SidebarStore.guild, SidebarStore.channel, SidebarStore.width]
         );
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
@@ -135,7 +151,7 @@ export default definePlugin({
         return (
             <Resize
                 sidebarType={Sidebars.MessageRequestSidebar}
-                maxWidth={1158}
+                maxWidth={width - 690}
             >
                 <HeaderBar
                     toolbar={
