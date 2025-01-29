@@ -22,6 +22,7 @@ export const SidebarStore = proxyLazy(() => {
     class SidebarStore extends Flux.Store {
         public guild: Guild | null = null;
         public channel: Channel | null = null;
+        public width = 0;
     }
 
     const store = new SidebarStore(FluxDispatcher, {
@@ -38,10 +39,15 @@ export const SidebarStore = proxyLazy(() => {
             store.channel = ChannelStore.getChannel(channelId);
             store.emitChange();
         },
-        // @ts-ignore
+
         CLOSE_SIDEBAR_CHAT() {
             store.guild = null;
             store.channel = null;
+        },
+
+        SIDEBAR_CHAT_WIDTH({ width }: { width: number; }) {
+            store.width = width;
+            store.emitChange();
         }
     });
 
