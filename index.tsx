@@ -13,7 +13,6 @@ import {
     ChannelRouter,
     ChannelStore,
     FluxDispatcher,
-    Icons,
     Menu,
     MessageActions,
     PermissionsBits,
@@ -27,15 +26,16 @@ import {
     useStateFromStores
 } from "@webpack/common";
 import { Channel, User } from "discord-types/general";
-
 import { SidebarStore } from "./store";
-
 
 const { HeaderBar, HeaderBarIcon } = mapMangledModuleLazy(".themedMobile]:", {
     HeaderBarIcon: filters.byCode('size:"custom",'),
     HeaderBar: filters.byCode(".themedMobile]:"),
 });
 
+const ArrowsLeftRightIcon = findComponentByCodeLazy("2H5.41l2.3 2.3a1");
+const WindowLaunchIcon = findComponentByCodeLazy("1-1h6a1 1 0 1 0 0-2H5Z");
+const XSmallIcon = findComponentByCodeLazy("1.4L12 13.42l5.3 5.3Z");
 const Chat = findComponentByCodeLazy("filterAfterTimestamp:", "chatInputType");
 const Resize = findComponentByCodeLazy("sidebarType:", "homeSidebarWidth");
 const ChannelHeader = findComponentByCodeLazy(".forumPostTitle]:", '"channel-".concat');
@@ -141,7 +141,7 @@ export default definePlugin({
                     toolbar={
                         <>
                             <HeaderBarIcon
-                                icon={Icons.ArrowsLeftRightIcon}
+                                icon={ArrowsLeftRightIcon}
                                 tooltip="Switch channels"
                                 onClick={() => {
                                     const currentChannel = ChannelStore.getChannel(SelectedChannelStore.getChannelId());
@@ -156,7 +156,7 @@ export default definePlugin({
                                 }}
                             />
                             <HeaderBarIcon
-                                icon={Icons.WindowLaunchIcon}
+                                icon={WindowLaunchIcon}
                                 tooltip="Popout Chat"
                                 onClick={async () => {
                                     // I know it seems silly to have this but
@@ -171,7 +171,7 @@ export default definePlugin({
                                 }}
                             />
                             <HeaderBarIcon
-                                icon={Icons.XSmallIcon}
+                                icon={XSmallIcon}
                                 tooltip="Close Sidebar Chat"
                                 onClick={() => {
                                     FluxDispatcher.dispatch({
