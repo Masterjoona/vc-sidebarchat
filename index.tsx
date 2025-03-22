@@ -7,26 +7,36 @@
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
+import { getCurrentChannel, getCurrentGuild } from "@utils/discord";
 import definePlugin from "@utils/types";
-import { DefaultExtractAndLoadChunksRegex, extractAndLoadChunksLazy, filters, findByPropsLazy, findComponentByCodeLazy, findLazy, findStoreLazy, mapMangledModuleLazy } from "@webpack";
+import {
+    DefaultExtractAndLoadChunksRegex,
+    extractAndLoadChunksLazy,
+    filters,
+    findByPropsLazy,
+    findComponentByCodeLazy,
+    findLazy,
+    findStoreLazy,
+    mapMangledModuleLazy
+} from "@webpack";
 import {
     ChannelRouter,
     ChannelStore,
     FluxDispatcher,
     Menu,
     MessageActions,
+    MessageStore,
     PermissionsBits,
     PermissionStore,
     PopoutActions,
     React,
-    SelectedChannelStore,
-    SelectedGuildStore,
     useEffect,
     UserStore,
     useStateFromStores
 } from "@webpack/common";
 import { Channel, User } from "discord-types/general";
-import { SidebarStore } from "./store";
+
+import { settings, SidebarStore } from "./store";
 
 const { HeaderBar, HeaderBarIcon } = mapMangledModuleLazy(".themedMobile]:", {
     HeaderBarIcon: filters.byCode('size:"custom",'),
@@ -62,7 +72,7 @@ interface ContextMenuProps {
 }
 
 function MakeContextCallback(name: "user" | "channel"): NavContextMenuPatchCallback {
-    return (children, { user, channel, guildId }: ContextMenuProps) => {
+    return (children, { user, channel }: ContextMenuProps) => {
         const isUser = name === "user";
         if (isUser && !user) return;
         if (!isUser && (!channel || channel.type === 4)) return;
@@ -79,7 +89,7 @@ function MakeContextCallback(name: "user" | "channel"): NavContextMenuPatchCallb
                         // @ts-ignore
                         type: "NEW_SIDEBAR_CHAT",
                         isUser,
-                        guildId: guildId || channel.guild_id,
+                        guildId: channel.guild_id,
                         id: isUser ? user.id : channel.id,
                     });
                 }}
@@ -110,11 +120,13 @@ export default definePlugin({
         }
     ],
 
+    settings,
+
     setWidth: (w: number) => {
         FluxDispatcher.dispatch({
             // @ts-ignore
             type: "SIDEBAR_CHAT_WIDTH",
-            width: w
+            newWidth: w
         });
     },
 
@@ -126,21 +138,19 @@ export default definePlugin({
     },
 
     renderSidebar: ErrorBoundary.wrap(() => {
-        const [guild, channel, width] = useStateFromStores(
-            [SidebarStore],
-            () => [SidebarStore.guild, SidebarStore.channel, SidebarStore.width]
-        );
+        const { guild, channel, width } = useStateFromStores([SidebarStore], () => SidebarStore.getFullState());
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
             [ChannelSectionStore],
             () => [
-                ChannelSectionStore.getSidebarState(SelectedChannelStore.getChannelId()),
-                ChannelSectionStore.getGuildSidebarState(SelectedGuildStore.getGuildId())
+                ChannelSectionStore.getSidebarState(getCurrentChannel()?.id),
+                ChannelSectionStore.getGuildSidebarState(getCurrentGuild()?.id),
             ]
         );
 
         useEffect(() => {
             if (channel) {
+                if (MessageStore.getLastMessage(channel.id)) return;
                 MessageActions.fetchMessages({
                     channelId: channel.id,
                     limit: 50,
@@ -162,7 +172,7 @@ export default definePlugin({
                                 icon={ArrowsLeftRightIcon}
                                 tooltip="Switch channels"
                                 onClick={() => {
-                                    const currentChannel = ChannelStore.getChannel(SelectedChannelStore.getChannelId());
+                                    const currentChannel = getCurrentChannel()!;
                                     FluxDispatcher.dispatch({
                                         // @ts-ignore
                                         type: "NEW_SIDEBAR_CHAT",
@@ -177,15 +187,14 @@ export default definePlugin({
                                 icon={WindowLaunchIcon}
                                 tooltip="Popout Chat"
                                 onClick={async () => {
-                                    // I know it seems silly to have this but
-                                    // its required since if user clicks on a thread or a dm
                                     await requireChannelContextMenu();
                                     PopoutActions.open(
                                         `DISCORD_VC_SC-${channel.id}`,
-                                        () => renderPopout(channel), {
-                                        defaultWidth: 854,
-                                        defaultHeight: 480
-                                    });
+                                        () => <RenderPopout channel={channel} />,
+                                        {
+                                            defaultWidth: 854,
+                                            defaultHeight: 480
+                                        });
                                 }}
                             />
                             <HeaderBarIcon
@@ -218,7 +227,7 @@ export default definePlugin({
     }),
 });
 
-const renderPopout = ErrorBoundary.wrap((channel: Channel) => {
+const RenderPopout = ErrorBoundary.wrap(({ channel }: { channel: Channel; }) => {
     // Copy from an unexported function of the one they use in the experiment
     // right click a channel and search withTitleBar:!0,windowKey
     const { Provider } = React.createContext<string | undefined>(undefined);

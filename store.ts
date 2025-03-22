@@ -4,13 +4,18 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { definePluginSettings } from "@api/Settings";
 import { proxyLazy } from "@utils/lazy";
-import { findByPropsLazy } from "@webpack";
-import { ChannelStore, Flux, FluxDispatcher, GuildStore } from "@webpack/common";
-import { Channel, Guild } from "discord-types/general";
+import { OptionType } from "@utils/types";
+import { ChannelStore, Flux, FluxDispatcher, GuildStore, PrivateChannelsStore } from "@webpack/common";
 
-// cant destructure, otherwise context is lost
-const DMChannelHandler = findByPropsLazy("getOrEnsurePrivateChannel");
+export const settings = definePluginSettings({
+    persistSidebar: {
+        type: OptionType.BOOLEAN,
+        description: "Keep the sidebar chat open across Discord restarts",
+        default: true,
+    }
+});
 
 interface SidebarData {
     isUser: boolean;
@@ -19,34 +24,59 @@ interface SidebarData {
 }
 
 export const SidebarStore = proxyLazy(() => {
-    class SidebarStore extends Flux.Store {
-        public guild: Guild | null = null;
-        public channel: Channel | null = null;
-        public width = 0;
+    let guildId = "";
+    let channelId = "";
+    let width = 0;
+    class SidebarStore extends Flux.PersistedStore {
+        static persistKey = "SidebarStore";
+
+        initialize(previous: { guildId?: string; channelId?: string; width?: number; } | undefined) {
+            if (!settings.store.persistSidebar || !previous) return;
+            const { guildId: prevGId, channelId: prevCId, width: prevWidth } = previous;
+            guildId = prevGId || "";
+            channelId = prevCId || "";
+            width = prevWidth || 0;
+        }
+
+        getState() {
+            return {
+                guildId,
+                channelId,
+                width
+            };
+        }
+
+        getFullState() {
+            return {
+                guild: GuildStore.getGuild(guildId),
+                channel: ChannelStore.getChannel(channelId),
+                width
+            };
+        }
     }
 
     const store = new SidebarStore(FluxDispatcher, {
         // @ts-ignore
-        async NEW_SIDEBAR_CHAT({ isUser, guildId, id }: SidebarData) {
-            store.guild = guildId ? GuildStore.getGuild(guildId) : null;
+        async NEW_SIDEBAR_CHAT({ isUser, guildId: newGId, id }: SidebarData) {
+            guildId = newGId || "";
 
             if (!isUser) {
-                store.channel = ChannelStore.getChannel(id);
+                channelId = id;
                 return;
             }
 
-            const channelId = await DMChannelHandler.getOrEnsurePrivateChannel(id);
-            store.channel = ChannelStore.getChannel(channelId);
+            channelId = await PrivateChannelsStore.getOrEnsurePrivateChannel(id);
             store.emitChange();
         },
 
         CLOSE_SIDEBAR_CHAT() {
-            store.guild = null;
-            store.channel = null;
+            guildId = "";
+            channelId = "";
+            store.emitChange();
         },
 
-        SIDEBAR_CHAT_WIDTH({ width }: { width: number; }) {
-            store.width = width;
+        SIDEBAR_CHAT_WIDTH({ newWidth }: { newWidth: number; }) {
+            width = newWidth;
             store.emitChange();
         }
     });
