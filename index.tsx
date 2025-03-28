@@ -32,16 +32,21 @@ import {
     React,
     useEffect,
     UserStore,
+    useState,
     useStateFromStores
 } from "@webpack/common";
 import { Channel, User } from "discord-types/general";
 
 import { settings, SidebarStore } from "./store";
 
-const { HeaderBar, HeaderBarIcon } = mapMangledModuleLazy(".themedMobile]:", {
-    HeaderBarIcon: filters.byCode('size:"custom",'),
+// ??? no clue why this HeaderBarIcon doesnt work, its the same as the one below
+const { HeaderBar, /* HeaderBarIcon*/ } = mapMangledModuleLazy(".themedMobile]:", {
+    HeaderBarIcon: filters.componentByCode('size:"custom",'),
     HeaderBar: filters.byCode(".themedMobile]:"),
 });
+
+// from toolbox
+const HeaderBarIcon = findComponentByCodeLazy(".HEADER_BAR_BADGE_TOP:", '.iconBadge,"top"');
 
 const ArrowsLeftRightIcon = () => {
     return <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="var(--interactive-normal)" d="M2.3 7.7a1 1 0 0 1 0-1.4l4-4a1 1 0 0 1 1.4 1.4L5.42 6H21a1 1 0 1 1 0 2H5.41l2.3 2.3a1 1 0 1 1-1.42 1.4l-4-4ZM17.7 21.7l4-4a1 1 0 0 0 0-1.4l-4-4a1 1 0 0 0-1.4 1.4l2.29 2.3H3a1 1 0 1 0 0 2h15.59l-2.3 2.3a1 1 0 0 0 1.42 1.4Z"></path></svg>;
@@ -110,14 +115,14 @@ export default definePlugin({
                 replace: "return [$1,$self.renderSidebar()]"
             }
         },
-        {
+        /* {
             // :trolley:
             find: ".SIDEBAR_CHAT&&null",
             replacement: {
                 match: /this.props.channelId}\);/,
                 replace: "$&$self.setWidth(this.props.width);"
             }
-        }
+        }*/
     ],
 
     settings,
@@ -138,7 +143,8 @@ export default definePlugin({
     },
 
     renderSidebar: ErrorBoundary.wrap(() => {
-        const { guild, channel, width } = useStateFromStores([SidebarStore], () => SidebarStore.getFullState());
+        const { guild, channel, /* width*/ } = useStateFromStores([SidebarStore], () => SidebarStore.getFullState());
+        const [width, setWidth] = useState(0);
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
             [ChannelSectionStore],
@@ -158,12 +164,25 @@ export default definePlugin({
             }
         }, [channel]);
 
+        useEffect(() => {
+            if (width === 0) {
+                setWidth(window.innerWidth);
+            }
+            const handleResize = () => {
+                setWidth(window.innerWidth);
+            };
+            window.addEventListener("resize", handleResize);
+            return () => {
+                window.removeEventListener("resize", handleResize);
+            };
+        }, []);
+
         if (!channel || channelSidebar || guildSidebar) return null;
 
         return (
             <Resize
                 sidebarType={Sidebars.MessageRequestSidebar}
-                maxWidth={width - 690}
+                maxWidth={~~(width * 0.315)/* width - 690*/}
             >
                 <HeaderBar
                     toolbar={
