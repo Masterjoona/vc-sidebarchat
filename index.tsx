@@ -32,7 +32,6 @@ import {
     React,
     useEffect,
     UserStore,
-    useState,
     useStateFromStores
 } from "@webpack/common";
 import { Channel, User } from "discord-types/general";
@@ -108,21 +107,27 @@ export default definePlugin({
     authors: [Devs.Joona],
     description: "Open a another channel or a DM as a sidebar or as a popout",
     patches: [
-        {
+        /* {
             find: 'case"pendingFriends":',
             replacement: {
                 match: /return(\(0,\i\.jsxs?\)\(\i\.\i,{}\))/,
                 replace: "return [$1,$self.renderSidebar()]"
             }
-        },
-        /* {
+        },*/
+        {
             // :trolley:
             find: ".SIDEBAR_CHAT&&null",
-            replacement: {
-                match: /this.props.channelId}\);/,
-                replace: "$&$self.setWidth(this.props.width);"
-            }
-        }*/
+            replacement: [
+                /* {
+                    match: /this.props.channelId}\);/,
+                    replace: "$&$self.setWidth(this.props.width);"
+                }*/
+                {
+                    match: /this.renderThreadSidebar\(\),/,
+                    replace: "$&$self.renderSidebar(),"
+                }
+            ]
+        }
     ],
 
     settings,
@@ -144,7 +149,6 @@ export default definePlugin({
 
     renderSidebar: ErrorBoundary.wrap(() => {
         const { guild, channel, /* width*/ } = useStateFromStores([SidebarStore], () => SidebarStore.getFullState());
-        const [width, setWidth] = useState(0);
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
             [ChannelSectionStore],
@@ -164,25 +168,12 @@ export default definePlugin({
             }
         }, [channel]);
 
-        useEffect(() => {
-            if (width === 0) {
-                setWidth(window.innerWidth);
-            }
-            const handleResize = () => {
-                setWidth(window.innerWidth);
-            };
-            window.addEventListener("resize", handleResize);
-            return () => {
-                window.removeEventListener("resize", handleResize);
-            };
-        }, []);
-
         if (!channel || channelSidebar || guildSidebar) return null;
 
         return (
             <Resize
                 sidebarType={Sidebars.MessageRequestSidebar}
-                maxWidth={~~(width * 0.315)/* width - 690*/}
+                maxWidth={~~(window.innerWidth * 0.35)/* width - 690*/}
             >
                 <HeaderBar
                     toolbar={
