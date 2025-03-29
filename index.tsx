@@ -69,6 +69,9 @@ const ChannelSectionStore = findStoreLazy("ChannelSectionStore");
 
 const requireChannelContextMenu = extractAndLoadChunksLazy(["&&this.handleActivitiesPopoutClose(),"], new RegExp(DefaultExtractAndLoadChunksRegex.source + ".{1,150}isFavorite"));
 
+
+let isAlreadyShown = false; // fix for popout windows
+
 interface ContextMenuProps {
     channel: Channel;
     guildId?: string;
@@ -168,8 +171,8 @@ export default definePlugin({
             }
         }, [channel]);
 
-        if (!channel || channelSidebar || guildSidebar) return null;
-
+        if (!channel || channelSidebar || guildSidebar || isAlreadyShown) return isAlreadyShown = false, null;
+        isAlreadyShown = true;
         return (
             <Resize
                 sidebarType={Sidebars.MessageRequestSidebar}
