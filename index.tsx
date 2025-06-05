@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./styles.css";
+
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
@@ -32,6 +34,7 @@ import {
     React,
     useEffect,
     UserStore,
+    useState,
     useStateFromStores
 } from "@webpack/common";
 import { Channel, User } from "discord-types/general";
@@ -108,38 +111,24 @@ export default definePlugin({
     authors: [Devs.Joona],
     description: "Open a another channel or a DM as a sidebar or as a popout",
     patches: [
-        /* {
+        {
             find: 'case"pendingFriends":',
             replacement: {
-                match: /return(\(0,\i\.jsxs?\)\(\i\.\i,{}\))/,
-                replace: "return [$1,$self.renderSidebar()]"
+                match: /return(\(0,\i\.jsxs?\)\(\i\.\i,{}\))}/,
+                replace: "return [$1, $self.renderSidebar()]}"
             }
-        },*/
-        {
-            // :trolley:
-            find: ".SIDEBAR_CHAT&&null",
-            replacement: [
-                /* {
-                    match: /this.props.channelId}\);/,
-                    replace: "$&$self.setWidth(this.props.width);"
-                }*/
-                {
-                    match: /this.renderThreadSidebar\(\),/,
-                    replace: "$&$self.renderSidebar(),"
-                }
-            ]
-        }
+        },
     ],
 
     settings,
 
-    setWidth: (w: number) => {
+    /* setWidth: (w: number) => {
         FluxDispatcher.dispatch({
             // @ts-ignore
             type: "SIDEBAR_CHAT_WIDTH",
             newWidth: w
         });
-    },
+    },*/
 
     contextMenus: {
         "user-context": MakeContextCallback("user"),
@@ -150,6 +139,7 @@ export default definePlugin({
 
     renderSidebar: ErrorBoundary.wrap(() => {
         const { guild, channel, /* width*/ } = useStateFromStores([SidebarStore], () => SidebarStore.getFullState());
+        const [width, setWidth] = useState(0);
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
             [ChannelSectionStore],
@@ -169,12 +159,23 @@ export default definePlugin({
             }
         }, [channel]);
 
+        useEffect(() => {
+            if (width === 0) setWidth(window.innerWidth);
+            const handleResize = () => setWidth(window.innerWidth);
+
+            window.addEventListener("resize", handleResize);
+            return () => {
+                window.removeEventListener("resize", handleResize);
+            };
+        }, []);
+
         if (!channel || channelSidebar || guildSidebar) return null;
 
         return (
             <Resize
                 sidebarType={Sidebars.MessageRequestSidebar}
-                maxWidth={~~(window.innerWidth * 0.35)/* width - 690*/}
+                maxWidth={~~(width * 0.31)/* width - 690*/
+                }
             >
                 <HeaderBar
                     toolbar={
