@@ -165,13 +165,11 @@ export default definePlugin({
         );
 
         useEffect(() => {
-            if (channel?.id) {
-                if (MessageStore.getLastMessage(channel.id)) return;
-                MessageActions.fetchMessages({
-                    channelId: channel.id,
-                    limit: 50,
-                });
-            }
+            if (!channel?.id || MessageStore.getLastMessage(channel.id)) return;
+            MessageActions.fetchMessages({
+                channelId: channel.id,
+                limit: 50,
+            });
         }, [channel?.id]);
 
         const [width, setWidth] = useState(window.innerWidth);
@@ -259,7 +257,7 @@ const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
         >
             <ChannelHeader
                 channel={channel}
-                channelName={channel?.name}
+                channelName={name}
                 guild={guild}
                 parentChannel={parentChannel}
             />
@@ -274,7 +272,7 @@ const RenderPopout = ErrorBoundary.wrap(({ channel, name }: { channel: Channel; 
         <PopoutWindow
             withTitleBar
             windowKey={`DISCORD_VC_SC-${channel.id}`}
-            title={name}
+            title={name || "Vencord"}
             channelId={channel.id}
             contentClassName={ppStyle.popoutContent}
         >
