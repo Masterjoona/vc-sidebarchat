@@ -7,15 +7,12 @@
 import { definePluginSettings } from "@api/Settings";
 import { proxyLazy } from "@utils/lazy";
 import { OptionType } from "@utils/types";
-import { findByPropsLazy } from "@webpack";
-import { ChannelStore, FluxDispatcher, GuildStore, PrivateChannelsStore } from "@webpack/common";
-import { FluxEmitter, FluxStore } from "@webpack/types";
+import { Flux as TFlux } from "@vencord/discord-types";
+import { Flux as FluxWP, FluxDispatcher, PrivateChannelsStore } from "@webpack/common";
 
-interface IFlux {
-    PersistedStore: typeof FluxStore;
-    Emitter: FluxEmitter;
+interface IFlux extends TFlux {
+    PersistedStore: TFlux["Store"];
 }
-const Flux: IFlux = findByPropsLazy("connectStores");
 
 export const settings = definePluginSettings({
     persistSidebar: {
@@ -25,17 +22,11 @@ export const settings = definePluginSettings({
     }
 });
 
-interface SidebarData {
-    isUser: boolean;
-    guildId: string;
-    id: string;
-}
-
 export const SidebarStore = proxyLazy(() => {
     let guildId = "";
     let channelId = "";
     let width = 0;
-    class SidebarStore extends Flux.PersistedStore {
+    class SidebarStore extends (FluxWP as IFlux).PersistedStore {
         static persistKey = "SidebarStore";
         // @ts-ignore
         initialize(previous: { guildId?: string; channelId?: string; width?: number; } | undefined) {
@@ -53,23 +44,16 @@ export const SidebarStore = proxyLazy(() => {
                 width
             };
         }
-
-        getFullState() {
-            return {
-                guild: GuildStore.getGuild(guildId),
-                channel: ChannelStore.getChannel(channelId),
-                width
-            };
-        }
     }
 
     const store = new SidebarStore(FluxDispatcher, {
         // @ts-ignore
-        async NEW_SIDEBAR_CHAT({ isUser, guildId: newGId, id }: SidebarData) {
+        async NEW_SIDEBAR_CHAT({ guildId: newGId, id }: { guildId: string | null; id: string; }) {
             guildId = newGId || "";
 
-            if (!isUser) {
+            if (guildId) {
                 channelId = id;
+                store.emitChange();
                 return;
             }
 
