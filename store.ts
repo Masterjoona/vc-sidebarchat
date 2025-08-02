@@ -7,15 +7,14 @@
 import { definePluginSettings } from "@api/Settings";
 import { proxyLazy } from "@utils/lazy";
 import { OptionType } from "@utils/types";
-import { findByPropsLazy } from "@webpack";
-import { ChannelStore, FluxDispatcher, GuildStore, PrivateChannelsStore } from "@webpack/common";
-import { FluxEmitter, FluxStore } from "@webpack/types";
+import { Flux } from "@vencord/discord-types";
+import { ChannelStore, Flux as _Flux, FluxDispatcher, GuildStore, PrivateChannelsStore } from "@webpack/common";
 
-interface IFlux {
-    PersistedStore: typeof FluxStore;
-    Emitter: FluxEmitter;
+interface IFlux extends Flux {
+    PersistedStore: Flux["Store"]
 }
-const Flux: IFlux = findByPropsLazy("connectStores");
+
+const Flux = _Flux as IFlux;
 
 export const settings = definePluginSettings({
     persistSidebar: {
