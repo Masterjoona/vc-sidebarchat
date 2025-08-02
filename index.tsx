@@ -9,7 +9,6 @@ import "./styles.css";
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
-import { getCurrentChannel } from "@utils/discord";
 import definePlugin from "@utils/types";
 import { Channel, Guild, User } from "@vencord/discord-types";
 import {
@@ -35,6 +34,7 @@ import {
     PopoutActions,
     RelationshipStore,
     SelectedChannelStore,
+    SelectedGuildStore,
     useCallback,
     useEffect,
     useLayoutEffect,
@@ -42,7 +42,6 @@ import {
     useState,
     useStateFromStores,
 } from "@webpack/common";
-import { SVGAttributes } from "react";
 
 import { settings, SidebarStore } from "./store";
 
@@ -55,8 +54,18 @@ const { HeaderBar, /* HeaderBarIcon*/ } = mapMangledModuleLazy(".themedMobile]:"
 // from toolbox
 const HeaderBarIcon = findComponentByCodeLazy(".HEADER_BAR_BADGE_TOP:", '.iconBadge,"top"');
 
-const ArrowsLeftRightIcon = ({ color, ...rest }: SVGAttributes<SVGElement>) => {
-    return <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" fill={color} viewBox="0 0 24 24" {...rest}><path d="M2.3 7.7a1 1 0 0 1 0-1.4l4-4a1 1 0 0 1 1.4 1.4L5.42 6H21a1 1 0 1 1 0 2H5.41l2.3 2.3a1 1 0 1 1-1.42 1.4l-4-4ZM17.7 21.7l4-4a1 1 0 0 0 0-1.4l-4-4a1 1 0 0 0-1.4 1.4l2.29 2.3H3a1 1 0 1 0 0 2h15.59l-2.3 2.3a1 1 0 0 0 1.42 1.4Z" /></svg>;
+const ArrowsLeftRightIcon = ({ color, ...rest }) => {
+    return (
+        <svg
+            aria-hidden="true"
+            role="img"
+            xmlns="http://www.w3.org/2000/svg"
+            fill={color}
+            viewBox="0 0 24 24"
+            {...rest}>
+            <path d="M2.3 7.7a1 1 0 0 1 0-1.4l4-4a1 1 0 0 1 1.4 1.4L5.42 6H21a1 1 0 1 1 0 2H5.41l2.3 2.3a1 1 0 1 1-1.42 1.4l-4-4ZM17.7 21.7l4-4a1 1 0 0 0 0-1.4l-4-4a1 1 0 0 0-1.4 1.4l2.29 2.3H3a1 1 0 1 0 0 2h15.59l-2.3 2.3a1 1 0 0 0 1.42 1.4Z" />
+        </svg>
+    );
 };
 
 const WindowLaunchIcon = findComponentByCodeLazy("1-1h6a1 1 0 1 0 0-2H5Z");
@@ -68,48 +77,53 @@ const PopoutWindow = findComponentByCodeLazy("Missing guestWindow reference");
 const FullChannelView = findComponentByCodeLazy("showFollowButton:(null");
 
 // love
-const ppStyle = findLazy(m => m?.popoutContent && Object.keys(m).length === 1);
+const ppStyle = findLazy(m => m.popoutContent && Object.keys(m).length === 1);
 
 const ChatInputTypes = findByPropsLazy("FORM", "NORMAL");
 const Sidebars = findByPropsLazy("ThreadSidebar", "MessageRequestSidebar");
 
 const ChannelSectionStore = findStoreLazy("ChannelSectionStore");
 
-const requireChannelContextMenu = extractAndLoadChunksLazy(["&&this.handleActivitiesPopoutClose(),"], new RegExp(DefaultExtractAndLoadChunksRegex.source + ".{1,150}isFavorite"));
+const requireChannelContextMenu = extractAndLoadChunksLazy(
+    ["&&this.handleActivitiesPopoutClose(),"],
+    new RegExp(DefaultExtractAndLoadChunksRegex.source + ".{1,150}isFavorite")
+);
 
+const MakeContextMenu = (id: string, guildId: string | null) => {
+    return (
+        <Menu.MenuItem
+            id={`vc-sidebar-chat-${name}`}
+            label={"Open Sidebar Chat"}
+            action={() => {
+                FluxDispatcher.dispatch({
+                    // @ts-ignore
+                    type: "NEW_SIDEBAR_CHAT",
+                    guildId,
+                    id,
+                });
+            }}
+        />
+    );
+};
 
-interface ContextMenuProps {
-    channel: Channel;
-    guildId?: string;
-    user: User;
-}
+const UserContextPatch: NavContextMenuPatchCallback = (children, args: { user: User; }) => {
+    const checks = [
+        args.user,
+        args.user.id !== UserStore.getCurrentUser().id,
+    ];
+    if (checks.some(check => !check)) return;
+    children.push(MakeContextMenu(args.user.id, null));
+};
 
-function MakeContextCallback(name: "user" | "channel"): NavContextMenuPatchCallback {
-    return (children, { user, channel }: ContextMenuProps) => {
-        const isUser = name === "user";
-        if (isUser && !user) return;
-        if (!isUser && (!channel || channel.type === 4)) return;
-
-        if (isUser && user.id === UserStore.getCurrentUser().id) return;
-        if (!isUser && (!PermissionStore.can(PermissionsBits.VIEW_CHANNEL, channel) && channel.type !== 3)) return;
-
-        children.push(
-            <Menu.MenuItem
-                id={`vc-sidebar-chat-${name}`}
-                label={"Open Sidebar Chat"}
-                action={() => {
-                    FluxDispatcher.dispatch({
-                        // @ts-ignore
-                        type: "NEW_SIDEBAR_CHAT",
-                        isUser,
-                        guildId: channel.guild_id,
-                        id: isUser ? user.id : channel.id,
-                    });
-                }}
-            />
-        );
-    };
-}
+const ChannelContextPatch: NavContextMenuPatchCallback = (children, args: { channel: Channel; }) => {
+    const checks = [
+        args.channel,
+        args.channel.type !== 4, // categories
+        PermissionStore.can(PermissionsBits.VIEW_CHANNEL, args.channel),
+    ];
+    if (checks.some(check => !check)) return;
+    children.push(MakeContextMenu(args.channel.id, args.channel.guild_id));
+};
 
 export default definePlugin({
     name: "SidebarChat",
@@ -136,13 +150,13 @@ export default definePlugin({
     },*/
 
     contextMenus: {
-        "user-context": MakeContextCallback("user"),
-        "channel-context": MakeContextCallback("channel"),
-        "thread-context": MakeContextCallback("channel"),
-        "gdm-context": MakeContextCallback("channel"),
+        "user-context": UserContextPatch,
+        "channel-context": ChannelContextPatch,
+        "thread-context": ChannelContextPatch,
+        "gdm-context": ChannelContextPatch,
     },
 
-    renderSidebar: ErrorBoundary.wrap(() => {
+    renderSidebar() {
         const { guild, channel /* width*/ } = useStateFromStores(
             [SidebarStore, GuildStore, ChannelStore], () => {
                 const { channelId, guildId } = SidebarStore.getState();
@@ -150,18 +164,18 @@ export default definePlugin({
                     guild: GuildStore.getGuild(guildId),
                     channel: ChannelStore.getChannel(channelId)
                 };
-            }, []
+            }
         );
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
             [ChannelSectionStore, SelectedChannelStore, ChannelStore], () => {
                 const currentChannelId = SelectedChannelStore.getChannelId();
-                const guildId = ChannelStore.getChannel(currentChannelId)?.getGuildId();
+                const currentGuildId = SelectedGuildStore.getGuildId();
                 return [
                     ChannelSectionStore.getSidebarState(currentChannelId),
-                    ChannelSectionStore.getGuildSidebarState(guildId),
+                    ChannelSectionStore.getGuildSidebarState(currentGuildId),
                 ];
-            }, []
+            }
         );
 
         useEffect(() => {
@@ -178,27 +192,27 @@ export default definePlugin({
             const handleResize = () => setWidth(window.innerWidth);
 
             window.addEventListener("resize", handleResize);
-            return () => {
-                window.removeEventListener("resize", handleResize);
-            };
-        }, []);
+            return () => window.removeEventListener("resize", handleResize);
+        });
 
         if (!channel || channelSidebar || guildSidebar) return null;
 
         return (
-            <Resize
-                sidebarType={Sidebars.MessageRequestSidebar}
-                maxWidth={~~(width * 0.31)/* width - 690*/}
-            >
-                <Header channel={channel} guild={guild} />
-                <Chat
-                    channel={channel}
-                    guild={guild}
-                    chatInputType={ChatInputTypes.SIDEBAR}
-                />
-            </Resize>
+            <ErrorBoundary noop>
+                <Resize
+                    sidebarType={Sidebars.MessageRequestSidebar}
+                    maxWidth={~~(width * 0.31)/* width - 690*/}
+                >
+                    <Header channel={channel} guild={guild} />
+                    <Chat
+                        channel={channel}
+                        guild={guild}
+                        chatInputType={ChatInputTypes.SIDEBAR}
+                    />
+                </Resize>
+            </ErrorBoundary>
         );
-    }),
+    },
 });
 
 const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
@@ -216,31 +230,27 @@ const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
         [channel?.parent_id]
     );
 
-    const closeSidebar = useCallback(
-        () => FluxDispatcher.dispatch({
-                // @ts-ignore
-                type: "CLOSE_SIDEBAR_CHAT",
-        }), []);
+    // @ts-ignore
+    const closeSidebar = () => FluxDispatcher.dispatch({ type: "CLOSE_SIDEBAR_CHAT", });
 
-    const openPopout = useCallback(() => requireChannelContextMenu()
-        .then(() =>
-            PopoutActions.open(
-                `DISCORD_VC_SC-${channel.id}`,
-                () => <RenderPopout channel={channel} name={name} />,
-                {
-                    defaultWidth: 854,
-                    defaultHeight: 480,
-                }
-            )), [channel, name]);
+    const openPopout = useCallback(async () => {
+        await requireChannelContextMenu();
+        PopoutActions.open(
+            `DISCORD_VC_SC-${channel.id}`,
+            () => <RenderPopout channel={channel} name={name} />,
+            {
+                defaultWidth: 854,
+                defaultHeight: 480,
+            }
+        );
+    }, [channel, name]);
 
     const switchChannels = useCallback(() => {
-        const currentChannel = getCurrentChannel()!;
         FluxDispatcher.dispatch({
             // @ts-ignore
             type: "NEW_SIDEBAR_CHAT",
-            isUser: currentChannel.id === "1",
-            guildId: currentChannel?.guild_id,
-            id: currentChannel.id,
+            guildId: channel.guild_id,
+            id: channel.id,
         });
         ChannelRouter.transitionToChannel(channel.id);
     }, [channel.id]);

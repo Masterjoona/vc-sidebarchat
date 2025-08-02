@@ -7,14 +7,12 @@
 import { definePluginSettings } from "@api/Settings";
 import { proxyLazy } from "@utils/lazy";
 import { OptionType } from "@utils/types";
-import { Flux } from "@vencord/discord-types";
-import { Flux as _Flux, FluxDispatcher, PrivateChannelsStore } from "@webpack/common";
+import { Flux as TFlux } from "@vencord/discord-types";
+import { Flux as FluxWP, FluxDispatcher, PrivateChannelsStore } from "@webpack/common";
 
-interface IFlux extends Flux {
-    PersistedStore: Flux["Store"];
+interface IFlux extends TFlux {
+    PersistedStore: TFlux["Store"];
 }
-
-const Flux = _Flux as IFlux;
 
 export const settings = definePluginSettings({
     persistSidebar: {
@@ -24,17 +22,11 @@ export const settings = definePluginSettings({
     }
 });
 
-interface SidebarData {
-    isUser: boolean;
-    guildId: string;
-    id: string;
-}
-
 export const SidebarStore = proxyLazy(() => {
     let guildId = "";
     let channelId = "";
     let width = 0;
-    class SidebarStore extends Flux.PersistedStore {
+    class SidebarStore extends (FluxWP as IFlux).PersistedStore {
         static persistKey = "SidebarStore";
         // @ts-ignore
         initialize(previous: { guildId?: string; channelId?: string; width?: number; } | undefined) {
@@ -56,11 +48,12 @@ export const SidebarStore = proxyLazy(() => {
 
     const store = new SidebarStore(FluxDispatcher, {
         // @ts-ignore
-        async NEW_SIDEBAR_CHAT({ isUser, guildId: newGId, id }: SidebarData) {
+        async NEW_SIDEBAR_CHAT({ guildId: newGId, id }: { guildId: string | null; id: string; }) {
             guildId = newGId || "";
 
-            if (!isUser) {
+            if (guildId) {
                 channelId = id;
+                store.emitChange();
                 return;
             }
 
