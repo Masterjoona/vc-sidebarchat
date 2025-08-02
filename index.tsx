@@ -37,7 +37,7 @@ import {
     useState,
     useStateFromStores
 } from "@webpack/common";
-import { Channel, User } from "discord-types/general";
+import { Channel, User } from "@vencord/discord-types";
 
 import { settings, SidebarStore } from "./store";
 
