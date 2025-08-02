@@ -142,29 +142,25 @@ export default definePlugin({
 
     renderSidebar: ErrorBoundary.wrap(() => {
         const { guild, channel /* width*/ } = useStateFromStores(
-            [SidebarStore, GuildStore, ChannelStore],
-            () => {
+            [SidebarStore, GuildStore, ChannelStore], () => {
                 const { channelId, guildId } = SidebarStore.getState();
                 return {
                     guild: GuildStore.getGuild(guildId),
                     channel: ChannelStore.getChannel(channelId)
                 };
-            },
-            []
+            }, []
         );
         const [width, setWidth] = useState(window.innerWidth);
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
-            [ChannelSectionStore, SelectedChannelStore, ChannelStore],
-            () => {
+            [ChannelSectionStore, SelectedChannelStore, ChannelStore], () => {
                 const currentChannelId = SelectedChannelStore.getChannelId();
                 const guildId = ChannelStore.getChannel(currentChannelId)?.getGuildId();
                 return [
                     ChannelSectionStore.getSidebarState(currentChannelId),
                     ChannelSectionStore.getGuildSidebarState(guildId),
                 ];
-            },
-            []
+            }, []
         );
 
         useEffect(() => {
@@ -258,26 +254,25 @@ export default definePlugin({
 const RenderPopout = ErrorBoundary.wrap(({ channel }: { channel: Channel; }) => {
     // Copy from an unexported function of the one they use in the experiment
     // right click a channel and search withTitleBar:!0,windowKey
-    const selectedChannel = ChannelStore.getChannel(channel.id);
 
-    let { id, name } = selectedChannel;
+    const recipientId = channel.isPrivate() ? channel.getRecipientId() as string : null;
 
-    if (selectedChannel.isPrivate()) {
-        const recipientId = selectedChannel.getRecipientId() as string;
+    const name = useStateFromStores([UserStore, RelationshipStore], () => {
+        if (!recipientId || channel.name) return channel.name;
+
         const user = UserStore.getUser(recipientId);
-
-        name ||= RelationshipStore.getNickname(recipientId) || user.globalName || user.username;
-    }
+        return RelationshipStore.getNickname(recipientId) || user?.globalName || user?.username;
+    }, [recipientId, channel.name]);
 
     return (
         <PopoutWindow
             withTitleBar
-            windowKey={`DISCORD_VC_SC-${id}`}
-            title={name || undefined}
-            channelId={id}
+            windowKey={`DISCORD_VC_SC-${channel.id}`}
+            title={name}
+            channelId={channel.id}
             contentClassName={ppStyle.popoutContent}
         >
-            <FullChannelView providedChannel={selectedChannel} />
+            <FullChannelView providedChannel={channel} />
         </PopoutWindow>
     );
 });
