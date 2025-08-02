@@ -9,8 +9,9 @@ import "./styles.css";
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
-import { getCurrentChannel, getCurrentGuild } from "@utils/discord";
+import { getCurrentChannel } from "@utils/discord";
 import definePlugin from "@utils/types";
+import { Channel, User } from "@vencord/discord-types";
 import {
     DefaultExtractAndLoadChunksRegex,
     extractAndLoadChunksLazy,
@@ -25,6 +26,7 @@ import {
     ChannelRouter,
     ChannelStore,
     FluxDispatcher,
+    GuildStore,
     Menu,
     MessageActions,
     MessageStore,
@@ -32,12 +34,13 @@ import {
     PermissionStore,
     PopoutActions,
     RelationshipStore,
+    SelectedChannelStore,
     useEffect,
+    useLayoutEffect,
     UserStore,
     useState,
     useStateFromStores
 } from "@webpack/common";
-import { Channel, User } from "@vencord/discord-types";
 
 import { settings, SidebarStore } from "./store";
 
@@ -138,29 +141,43 @@ export default definePlugin({
     },
 
     renderSidebar: ErrorBoundary.wrap(() => {
-        const { guild, channel, /* width*/ } = useStateFromStores([SidebarStore], () => SidebarStore.getFullState());
-        const [width, setWidth] = useState(0);
+        const { guild, channel /* width*/ } = useStateFromStores(
+            [SidebarStore, GuildStore, ChannelStore],
+            () => {
+                const { channelId, guildId } = SidebarStore.getState();
+                return {
+                    guild: GuildStore.getGuild(guildId),
+                    channel: ChannelStore.getChannel(channelId)
+                };
+            },
+            []
+        );
+        const [width, setWidth] = useState(window.innerWidth);
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
-            [ChannelSectionStore],
-            () => [
-                ChannelSectionStore.getSidebarState(getCurrentChannel()?.id),
-                ChannelSectionStore.getGuildSidebarState(getCurrentGuild()?.id),
-            ]
+            [ChannelSectionStore, SelectedChannelStore, ChannelStore],
+            () => {
+                const currentChannelId = SelectedChannelStore.getChannelId();
+                const guildId = ChannelStore.getChannel(currentChannelId)?.getGuildId();
+                return [
+                    ChannelSectionStore.getSidebarState(currentChannelId),
+                    ChannelSectionStore.getGuildSidebarState(guildId),
+                ];
+            },
+            []
         );
 
         useEffect(() => {
-            if (channel) {
+            if (channel?.id) {
                 if (MessageStore.getLastMessage(channel.id)) return;
                 MessageActions.fetchMessages({
                     channelId: channel.id,
                     limit: 50,
                 });
             }
-        }, [channel]);
+        }, [channel?.id]);
 
-        useEffect(() => {
-            if (width === 0) setWidth(window.innerWidth);
+        useLayoutEffect(() => {
             const handleResize = () => setWidth(window.innerWidth);
 
             window.addEventListener("resize", handleResize);
@@ -174,8 +191,7 @@ export default definePlugin({
         return (
             <Resize
                 sidebarType={Sidebars.MessageRequestSidebar}
-                maxWidth={~~(width * 0.31)/* width - 690*/
-                }
+                maxWidth={~~(width * 0.31)/* width - 690*/}
             >
                 <HeaderBar
                     toolbar={

@@ -8,7 +8,7 @@ import { definePluginSettings } from "@api/Settings";
 import { proxyLazy } from "@utils/lazy";
 import { OptionType } from "@utils/types";
 import { Flux } from "@vencord/discord-types";
-import { ChannelStore, Flux as _Flux, FluxDispatcher, GuildStore, PrivateChannelsStore } from "@webpack/common";
+import { Flux as _Flux, FluxDispatcher, PrivateChannelsStore } from "@webpack/common";
 
 interface IFlux extends Flux {
     PersistedStore: Flux["Store"]
@@ -49,14 +49,6 @@ export const SidebarStore = proxyLazy(() => {
             return {
                 guildId,
                 channelId,
-                width
-            };
-        }
-
-        getFullState() {
-            return {
-                guild: GuildStore.getGuild(guildId),
-                channel: ChannelStore.getChannel(channelId),
                 width
             };
         }
