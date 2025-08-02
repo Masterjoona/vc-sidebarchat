@@ -164,7 +164,7 @@ export default definePlugin({
                     guild: GuildStore.getGuild(guildId),
                     channel: ChannelStore.getChannel(channelId)
                 };
-            }
+            }, []
         );
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
@@ -175,7 +175,7 @@ export default definePlugin({
                     ChannelSectionStore.getSidebarState(currentChannelId),
                     ChannelSectionStore.getGuildSidebarState(currentGuildId),
                 ];
-            }
+            }, []
         );
 
         useEffect(() => {
@@ -193,7 +193,7 @@ export default definePlugin({
 
             window.addEventListener("resize", handleResize);
             return () => window.removeEventListener("resize", handleResize);
-        });
+        }, []);
 
         if (!channel || channelSidebar || guildSidebar) return null;
 
