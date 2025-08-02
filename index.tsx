@@ -11,7 +11,7 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
 import { getCurrentChannel } from "@utils/discord";
 import definePlugin from "@utils/types";
-import { Channel, User } from "@vencord/discord-types";
+import { Channel, Guild, User } from "@vencord/discord-types";
 import {
     DefaultExtractAndLoadChunksRegex,
     extractAndLoadChunksLazy,
@@ -35,6 +35,7 @@ import {
     PopoutActions,
     RelationshipStore,
     SelectedChannelStore,
+    useCallback,
     useEffect,
     useLayoutEffect,
     UserStore,
@@ -150,7 +151,6 @@ export default definePlugin({
                 };
             }, []
         );
-        const [width, setWidth] = useState(window.innerWidth);
 
         const [channelSidebar, guildSidebar] = useStateFromStores(
             [ChannelSectionStore, SelectedChannelStore, ChannelStore], () => {
@@ -173,6 +173,8 @@ export default definePlugin({
             }
         }, [channel?.id]);
 
+        const [width, setWidth] = useState(window.innerWidth);
+
         useLayoutEffect(() => {
             const handleResize = () => setWidth(window.innerWidth);
 
@@ -189,58 +191,7 @@ export default definePlugin({
                 sidebarType={Sidebars.MessageRequestSidebar}
                 maxWidth={~~(width * 0.31)/* width - 690*/}
             >
-                <HeaderBar
-                    toolbar={
-                        <>
-                            <HeaderBarIcon
-                                icon={ArrowsLeftRightIcon}
-                                tooltip="Switch channels"
-                                onClick={() => {
-                                    const currentChannel = getCurrentChannel()!;
-                                    FluxDispatcher.dispatch({
-                                        // @ts-ignore
-                                        type: "NEW_SIDEBAR_CHAT",
-                                        isUser: currentChannel.id === "1",
-                                        guildId: currentChannel?.guild_id,
-                                        id: currentChannel.id,
-                                    });
-                                    ChannelRouter.transitionToChannel(channel.id);
-                                }}
-                            />
-                            <HeaderBarIcon
-                                icon={WindowLaunchIcon}
-                                tooltip="Popout Chat"
-                                onClick={async () => {
-                                    await requireChannelContextMenu();
-                                    PopoutActions.open(
-                                        `DISCORD_VC_SC-${channel.id}`,
-                                        () => <RenderPopout channel={channel} />,
-                                        {
-                                            defaultWidth: 854,
-                                            defaultHeight: 480
-                                        });
-                                }}
-                            />
-                            <HeaderBarIcon
-                                icon={XSmallIcon}
-                                tooltip="Close Sidebar Chat"
-                                onClick={() => {
-                                    FluxDispatcher.dispatch({
-                                        // @ts-ignore
-                                        type: "CLOSE_SIDEBAR_CHAT",
-                                    });
-                                }}
-                            />
-                        </>
-                    }
-                >
-                    <ChannelHeader
-                        channel={channel}
-                        channelName={channel?.name}
-                        guild={guild}
-                        parentChannel={ChannelStore.getChannel(channel?.parent_id)}
-                    />
-                </HeaderBar>
+                <Header channel={channel} guild={guild} />
                 <Chat
                     channel={channel}
                     guild={guild}
@@ -251,10 +202,7 @@ export default definePlugin({
     }),
 });
 
-const RenderPopout = ErrorBoundary.wrap(({ channel }: { channel: Channel; }) => {
-    // Copy from an unexported function of the one they use in the experiment
-    // right click a channel and search withTitleBar:!0,windowKey
-
+const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
     const recipientId = channel.isPrivate() ? channel.getRecipientId() as string : null;
 
     const name = useStateFromStores([UserStore, RelationshipStore], () => {
@@ -264,6 +212,63 @@ const RenderPopout = ErrorBoundary.wrap(({ channel }: { channel: Channel; }) => 
         return RelationshipStore.getNickname(recipientId) || user?.globalName || user?.username;
     }, [recipientId, channel.name]);
 
+    const parentChannel = useStateFromStores(
+        [ChannelStore], () => ChannelStore.getChannel(channel?.parent_id),
+        [channel?.parent_id]
+    );
+
+    const closeSidebar = useCallback(
+        () => FluxDispatcher.dispatch({
+                // @ts-ignore
+                type: "CLOSE_SIDEBAR_CHAT",
+        }), []);
+
+    const openPopout = useCallback(() => requireChannelContextMenu()
+        .then(() =>
+            PopoutActions.open(
+                `DISCORD_VC_SC-${channel.id}`,
+                () => <RenderPopout channel={channel} name={name} />,
+                {
+                    defaultWidth: 854,
+                    defaultHeight: 480,
+                }
+            )), [channel, name]);
+
+    const switchChannels = useCallback(() => {
+        const currentChannel = getCurrentChannel()!;
+        FluxDispatcher.dispatch({
+            // @ts-ignore
+            type: "NEW_SIDEBAR_CHAT",
+            isUser: currentChannel.id === "1",
+            guildId: currentChannel?.guild_id,
+            id: currentChannel.id,
+        });
+        ChannelRouter.transitionToChannel(channel.id);
+    }, [channel.id]);
+
+    return (
+        <HeaderBar
+            toolbar={
+                <>
+                    <HeaderBarIcon icon={ArrowsLeftRightIcon} tooltip="Switch channels" onClick={switchChannels} />
+                    <HeaderBarIcon icon={WindowLaunchIcon} tooltip="Popout Chat" onClick={openPopout} />
+                    <HeaderBarIcon icon={XSmallIcon} tooltip="Close Sidebar Chat" onClick={closeSidebar} />
+                </>
+            }
+        >
+            <ChannelHeader
+                channel={channel}
+                channelName={channel?.name}
+                guild={guild}
+                parentChannel={parentChannel}
+            />
+        </HeaderBar>
+    );
+};
+
+const RenderPopout = ErrorBoundary.wrap(({ channel, name }: { channel: Channel; name: string; }) => {
+    // Copy from an unexported function of the one they use in the experiment
+    // right click a channel and search withTitleBar:!0,windowKey
     return (
         <PopoutWindow
             withTitleBar
