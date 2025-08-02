@@ -31,6 +31,7 @@ import {
     PermissionsBits,
     PermissionStore,
     PopoutActions,
+    RelationshipStore,
     useEffect,
     UserStore,
     useState,
@@ -242,12 +243,22 @@ const RenderPopout = ErrorBoundary.wrap(({ channel }: { channel: Channel; }) => 
     // Copy from an unexported function of the one they use in the experiment
     // right click a channel and search withTitleBar:!0,windowKey
     const selectedChannel = ChannelStore.getChannel(channel.id);
+
+    let { id, name } = selectedChannel;
+
+    if (selectedChannel.isPrivate()) {
+        const recipientId = selectedChannel.getRecipientId() as string;
+        const user = UserStore.getUser(recipientId);
+
+        name ||= RelationshipStore.getNickname(recipientId) || user.globalName || user.username;
+    }
+
     return (
         <PopoutWindow
             withTitleBar={true}
-            windowKey={`DISCORD_VC_SC-${selectedChannel.id}`}
-            title={selectedChannel.name}
-            channelId={selectedChannel.id}
+            windowKey={`DISCORD_VC_SC-${id}`}
+            title={name || undefined}
+            channelId={id}
             contentClassName={ppStyle.popoutContent}
         >
             <FullChannelView providedChannel={selectedChannel} />
