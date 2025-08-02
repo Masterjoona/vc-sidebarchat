@@ -11,7 +11,7 @@ import { Flux } from "@vencord/discord-types";
 import { Flux as _Flux, FluxDispatcher, PrivateChannelsStore } from "@webpack/common";
 
 interface IFlux extends Flux {
-    PersistedStore: Flux["Store"]
+    PersistedStore: Flux["Store"];
 }
 
 const Flux = _Flux as IFlux;

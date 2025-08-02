@@ -20,7 +20,7 @@ import {
     findComponentByCodeLazy,
     findLazy,
     findStoreLazy,
-    mapMangledModuleLazy
+    mapMangledModuleLazy,
 } from "@webpack";
 import {
     ChannelRouter,
@@ -40,8 +40,9 @@ import {
     useLayoutEffect,
     UserStore,
     useState,
-    useStateFromStores
+    useStateFromStores,
 } from "@webpack/common";
+import { SVGAttributes } from "react";
 
 import { settings, SidebarStore } from "./store";
 
@@ -54,8 +55,8 @@ const { HeaderBar, /* HeaderBarIcon*/ } = mapMangledModuleLazy(".themedMobile]:"
 // from toolbox
 const HeaderBarIcon = findComponentByCodeLazy(".HEADER_BAR_BADGE_TOP:", '.iconBadge,"top"');
 
-const ArrowsLeftRightIcon = () => {
-    return <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="var(--interactive-normal)" d="M2.3 7.7a1 1 0 0 1 0-1.4l4-4a1 1 0 0 1 1.4 1.4L5.42 6H21a1 1 0 1 1 0 2H5.41l2.3 2.3a1 1 0 1 1-1.42 1.4l-4-4ZM17.7 21.7l4-4a1 1 0 0 0 0-1.4l-4-4a1 1 0 0 0-1.4 1.4l2.29 2.3H3a1 1 0 1 0 0 2h15.59l-2.3 2.3a1 1 0 0 0 1.42 1.4Z"></path></svg>;
+const ArrowsLeftRightIcon = ({ color, ...rest }: SVGAttributes<SVGElement>) => {
+    return <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" fill={color} viewBox="0 0 24 24" {...rest}><path d="M2.3 7.7a1 1 0 0 1 0-1.4l4-4a1 1 0 0 1 1.4 1.4L5.42 6H21a1 1 0 1 1 0 2H5.41l2.3 2.3a1 1 0 1 1-1.42 1.4l-4-4ZM17.7 21.7l4-4a1 1 0 0 0 0-1.4l-4-4a1 1 0 0 0-1.4 1.4l2.29 2.3H3a1 1 0 1 0 0 2h15.59l-2.3 2.3a1 1 0 0 0 1.42 1.4Z" /></svg>;
 };
 
 const WindowLaunchIcon = findComponentByCodeLazy("1-1h6a1 1 0 1 0 0-2H5Z");
