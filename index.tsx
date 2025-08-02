@@ -31,7 +31,6 @@ import {
     PermissionsBits,
     PermissionStore,
     PopoutActions,
-    React,
     useEffect,
     UserStore,
     useState,
@@ -242,7 +241,6 @@ export default definePlugin({
 const RenderPopout = ErrorBoundary.wrap(({ channel }: { channel: Channel; }) => {
     // Copy from an unexported function of the one they use in the experiment
     // right click a channel and search withTitleBar:!0,windowKey
-    const { Provider } = React.createContext<string | undefined>(undefined);
     const selectedChannel = ChannelStore.getChannel(channel.id);
     return (
         <PopoutWindow
@@ -252,9 +250,7 @@ const RenderPopout = ErrorBoundary.wrap(({ channel }: { channel: Channel; }) => 
             channelId={selectedChannel.id}
             contentClassName={ppStyle.popoutContent}
         >
-            <Provider value={selectedChannel.guild_id}>
-                <FullChannelView providedChannel={selectedChannel} />
-            </Provider>
+            <FullChannelView providedChannel={selectedChannel} />
         </PopoutWindow>
     );
 });
