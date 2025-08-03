@@ -9,6 +9,7 @@ import "./styles.css";
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
+import { getCurrentChannel } from "@utils/discord";
 import definePlugin from "@utils/types";
 import { Channel, Guild, User } from "@vencord/discord-types";
 import {
@@ -54,6 +55,10 @@ const { HeaderBar, /* HeaderBarIcon*/ } = mapMangledModuleLazy(".themedMobile]:"
 // from toolbox
 const HeaderBarIcon = findComponentByCodeLazy(".HEADER_BAR_BADGE_TOP:", '.iconBadge,"top"');
 
+const { ForumView } = mapMangledModuleLazy("forum-grid-header-section-", {
+    ForumView: filters.byCode("sidebarState")
+});
+
 const ArrowsLeftRightIcon = ({ color, ...rest }) => {
     return (
         <svg
@@ -75,12 +80,14 @@ const Resize = findComponentByCodeLazy("sidebarType:", "homeSidebarWidth");
 const ChannelHeader = findComponentByCodeLazy(".forumPostTitle]:", '"channel-".concat');
 const PopoutWindow = findComponentByCodeLazy("Missing guestWindow reference");
 const FullChannelView = findComponentByCodeLazy("showFollowButton:(null");
+const WanderingCubesLoading = findComponentByCodeLazy('="wanderingCubes"');
 
 // love
 const ppStyle = findLazy(m => m.popoutContent && Object.keys(m).length === 1);
 
 const ChatInputTypes = findByPropsLazy("FORM", "NORMAL");
 const Sidebars = findByPropsLazy("ThreadSidebar", "MessageRequestSidebar");
+const ChatClasses = findByPropsLazy("threadSidebarOpen");
 
 const ChannelSectionStore = findStoreLazy("ChannelSectionStore");
 
@@ -89,10 +96,15 @@ const requireChannelContextMenu = extractAndLoadChunksLazy(
     new RegExp(DefaultExtractAndLoadChunksRegex.source + ".{1,150}isFavorite")
 );
 
+const requireForumView = extractAndLoadChunksLazy(
+    ["Missing channel in Channel.renderHeaderToolbar"],
+    new RegExp(DefaultExtractAndLoadChunksRegex.source + '.{1,150}name:"ForumChannel"')
+);
+
 const MakeContextMenu = (id: string, guildId: string | null) => {
     return (
         <Menu.MenuItem
-            id={`vc-sidebar-chat-${name}`}
+            id={`vc-sidebar-chat-${id}`}
             label={"Open Sidebar Chat"}
             action={() => {
                 FluxDispatcher.dispatch({
@@ -195,6 +207,39 @@ export default definePlugin({
             return () => window.removeEventListener("resize", handleResize);
         }, []);
 
+        const [View, setViewComponent] = useState<React.ReactNode>(null);
+
+        useEffect(() => {
+            if (!channel) return;
+
+            // @ts-expect-error
+            if (channel.isForumLikeChannel()) {
+                requireForumView().then(() => {
+                    setViewComponent(
+                        <ForumView
+                            channel={channel}
+                            guild={guild}
+                            sidebarState={null}
+                        />
+                    );
+                });
+
+                setViewComponent(
+                    <div className={ChatClasses.loader}>
+                        <WanderingCubesLoading />
+                    </div>
+                );
+            } else {
+                setViewComponent(
+                    <Chat
+                        channel={channel}
+                        guild={guild}
+                        chatInputType={ChatInputTypes.SIDEBAR}
+                    />
+                );
+            }
+        }, [channel]);
+
         if (!channel || channelSidebar || guildSidebar) return null;
 
         return (
@@ -204,11 +249,7 @@ export default definePlugin({
                     maxWidth={~~(width * 0.31)/* width - 690*/}
                 >
                     <Header channel={channel} guild={guild} />
-                    <Chat
-                        channel={channel}
-                        guild={guild}
-                        chatInputType={ChatInputTypes.SIDEBAR}
-                    />
+                    {View}
                 </Resize>
             </ErrorBoundary>
         );
@@ -246,11 +287,12 @@ const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
     }, [channel, name]);
 
     const switchChannels = useCallback(() => {
+        const mainChannel = getCurrentChannel()!;
         FluxDispatcher.dispatch({
             // @ts-ignore
             type: "NEW_SIDEBAR_CHAT",
-            guildId: channel.guild_id,
-            id: channel.id,
+            guildId: mainChannel.guild_id,
+            id: mainChannel.id,
         });
         ChannelRouter.transitionToChannel(channel.id);
     }, [channel.id]);
