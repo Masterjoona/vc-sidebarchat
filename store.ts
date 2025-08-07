@@ -8,7 +8,7 @@ import { definePluginSettings } from "@api/Settings";
 import { proxyLazy } from "@utils/lazy";
 import { OptionType } from "@utils/types";
 import { Flux as TFlux } from "@vencord/discord-types";
-import { Flux as FluxWP, FluxDispatcher, PrivateChannelsStore } from "@webpack/common";
+import { ChannelActionCreators, Flux as FluxWP, FluxDispatcher } from "@webpack/common";
 
 interface IFlux extends TFlux {
     PersistedStore: TFlux["Store"];
@@ -57,7 +57,7 @@ export const SidebarStore = proxyLazy(() => {
                 return;
             }
 
-            channelId = await PrivateChannelsStore.getOrEnsurePrivateChannel(id);
+            channelId = await ChannelActionCreators.getOrEnsurePrivateChannel(id);
             store.emitChange();
         },
 
