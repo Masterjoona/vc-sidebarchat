@@ -109,7 +109,7 @@ const MakeContextMenu = (id: string, guildId: string | null) => {
             action={() => {
                 FluxDispatcher.dispatch({
                     // @ts-ignore
-                    type: "NEW_SIDEBAR_CHAT",
+                    type: "VC_SIDEBAR_CHAT_NEW",
                     guildId,
                     id,
                 });
@@ -144,10 +144,22 @@ export default definePlugin({
     patches: [
         {
             find: 'case"pendingFriends":',
-            replacement: {
-                match: /return(\(0,\i\.jsxs?\)\(\i\.\i,{}\))}/,
-                replace: "return [$1, $self.renderSidebar()]}"
-            }
+            group: true,
+            replacement: [
+                {
+                    match: /channel_renderer"\);/,
+                    replace: "$&const vc_SidebarChat=$self.renderSidebar();"
+                },
+                {
+                    match: /return(\(0,\i\.jsxs?\)\(\i\.\i,{}\))}/,
+                    replace: "return [$1, vc_SidebarChat]}"
+                },
+                {
+                    match: /(case \i\.\i.+?return)(.+?);(?=.+?params\.messageId)(?<=channel_renderer".+?)/g,
+                    replace: "$1[$2, vc_SidebarChat];",
+                    predicate: () => settings.store.patchCommunity
+                }
+            ]
         },
     ],
 
@@ -166,6 +178,15 @@ export default definePlugin({
         "channel-context": ChannelContextPatch,
         "thread-context": ChannelContextPatch,
         "gdm-context": ChannelContextPatch,
+    },
+
+    toolboxActions: {
+        "Open Previous Chat"() {
+            FluxDispatcher.dispatch({
+                // @ts-ignore
+                type: "VC_SIDEBAR_CHAT_PREVIOUS",
+            });
+        }
     },
 
     renderSidebar() {
@@ -272,7 +293,7 @@ const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
     );
 
     // @ts-ignore
-    const closeSidebar = () => FluxDispatcher.dispatch({ type: "CLOSE_SIDEBAR_CHAT", });
+    const closeSidebar = () => FluxDispatcher.dispatch({ type: "VC_SIDEBAR_CHAT_CLOSE", });
 
     const openPopout = useCallback(async () => {
         await requireChannelContextMenu();
@@ -290,7 +311,7 @@ const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
         const mainChannel = getCurrentChannel()!;
         FluxDispatcher.dispatch({
             // @ts-ignore
-            type: "NEW_SIDEBAR_CHAT",
+            type: "VC_SIDEBAR_CHAT_NEW",
             guildId: mainChannel.guild_id,
             id: mainChannel.id,
         });

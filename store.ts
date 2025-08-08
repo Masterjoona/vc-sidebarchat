@@ -19,51 +19,70 @@ export const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "Keep the sidebar chat open across Discord restarts",
         default: true,
+    },
+    patchCommunity: {
+        type: OptionType.BOOLEAN,
+        description: "Patch things like the Channel Browser or Members tab that community servers have.",
+        default: true,
+        restartNeeded: true,
     }
 });
 
 export const SidebarStore = proxyLazy(() => {
-    let guildId = "";
-    let channelId = "";
-    let width = 0;
+    const current = {
+        guildId: "",
+        channelId: "",
+        width: 0
+    };
+
+    let previous = { ...current };
+
     class SidebarStore extends (FluxWP as IFlux).PersistedStore {
         static persistKey = "SidebarStore";
+
         // @ts-ignore
-        initialize(previous: { guildId?: string; channelId?: string; width?: number; } | undefined) {
-            if (!settings.store.persistSidebar || !previous) return;
-            const { guildId: prevGId, channelId: prevCId, width: prevWidth } = previous;
-            guildId = prevGId || "";
-            channelId = prevCId || "";
-            width = prevWidth || 0;
+        initialize(previousState: { guildId?: string; channelId?: string; width?: number; } | undefined) {
+            if (!settings.store.persistSidebar || !previousState) return;
+            const { guildId, channelId, width } = previousState;
+            current.guildId = guildId || "";
+            current.channelId = channelId || "";
+            current.width = width || 0;
         }
 
         getState() {
-            return {
-                guildId,
-                channelId,
-                width
-            };
+            return current;
         }
     }
 
     const store = new SidebarStore(FluxDispatcher, {
         // @ts-ignore
-        async NEW_SIDEBAR_CHAT({ guildId: newGId, id }: { guildId: string | null; id: string; }) {
-            guildId = newGId || "";
+        async VC_SIDEBAR_CHAT_NEW({ guildId: newGId, id }: { guildId: string | null; id: string; }) {
+            previous = { ...current };
 
-            if (guildId) {
-                channelId = id;
+            current.guildId = newGId || "";
+
+            if (current.guildId) {
+                current.channelId = id;
                 store.emitChange();
                 return;
             }
 
-            channelId = await ChannelActionCreators.getOrEnsurePrivateChannel(id);
+            current.channelId = await ChannelActionCreators.getOrEnsurePrivateChannel(id);
             store.emitChange();
         },
 
-        CLOSE_SIDEBAR_CHAT() {
-            guildId = "";
-            channelId = "";
+        VC_SIDEBAR_CHAT_PREVIOUS() {
+            if (previous.channelId) {
+                current.guildId = previous.guildId;
+                current.channelId = previous.channelId;
+            }
+            store.emitChange();
+        },
+
+        VC_SIDEBAR_CHAT_CLOSE() {
+            previous = { ...current };
+            current.guildId = "";
+            current.channelId = "";
             store.emitChange();
         },
 
