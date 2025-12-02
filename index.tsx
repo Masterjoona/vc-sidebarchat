@@ -12,6 +12,7 @@ import { Devs } from "@utils/constants";
 import { getCurrentChannel } from "@utils/discord";
 import definePlugin from "@utils/types";
 import { Channel, Guild, User } from "@vencord/discord-types";
+import { ChannelType } from "@vencord/discord-types/enums";
 import {
     DefaultExtractAndLoadChunksRegex,
     extractAndLoadChunksLazy,
@@ -130,8 +131,8 @@ const UserContextPatch: NavContextMenuPatchCallback = (children, args: { user: U
 const ChannelContextPatch: NavContextMenuPatchCallback = (children, args: { channel: Channel; }) => {
     const checks = [
         args.channel,
-        args.channel.type !== 4, // categories
-        PermissionStore.can(PermissionsBits.VIEW_CHANNEL, args.channel),
+        args.channel.type !== ChannelType.GUILD_CATEGORY,
+        PermissionStore.can(PermissionsBits.VIEW_CHANNEL, args.channel) || args.channel.type === ChannelType.GROUP_DM,
     ];
     if (checks.some(check => !check)) return;
     children.push(MakeContextMenu(args.channel.id, args.channel.guild_id));

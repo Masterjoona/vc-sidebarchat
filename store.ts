@@ -8,7 +8,7 @@ import { definePluginSettings } from "@api/Settings";
 import { proxyLazy } from "@utils/lazy";
 import { OptionType } from "@utils/types";
 import { Flux as TFlux } from "@vencord/discord-types";
-import { ChannelActionCreators, Flux as FluxWP, FluxDispatcher } from "@webpack/common";
+import { ChannelActionCreators, ChannelStore, Flux as FluxWP, FluxDispatcher } from "@webpack/common";
 
 interface IFlux extends TFlux {
     PersistedStore: TFlux["Store"];
@@ -22,7 +22,7 @@ export const settings = definePluginSettings({
     },
     patchCommunity: {
         type: OptionType.BOOLEAN,
-        description: "Patch things like the Channel Browser or Members tab that community servers have.",
+        description: "Patch things like the Channel Browser or Members tab that community servers have. Might have some styling issues.",
         default: true,
         restartNeeded: true,
     }
@@ -67,7 +67,7 @@ export const SidebarStore = proxyLazy(() => {
                 return;
             }
 
-            current.channelId = await ChannelActionCreators.getOrEnsurePrivateChannel(id);
+            current.channelId = ChannelStore.getChannel(id)?.id ?? await ChannelActionCreators.getOrEnsurePrivateChannel(id);
             store.emitChange();
         },
 
