@@ -19,7 +19,7 @@ import {
     filters,
     findByPropsLazy,
     findComponentByCodeLazy,
-    findLazy,
+    findCssClassesLazy,
     findStoreLazy,
     mapMangledModuleLazy,
 } from "@webpack";
@@ -48,13 +48,13 @@ import {
 import { settings, SidebarStore } from "./store";
 
 // ??? no clue why this HeaderBarIcon doesnt work, its the same as the one below
-const { HeaderBar, /* HeaderBarIcon*/ } = mapMangledModuleLazy(".themedMobile]:", {
-    HeaderBarIcon: filters.componentByCode('size:"custom",'),
-    HeaderBar: filters.byCode(".themedMobile]:"),
+const { HeaderBar, /* HeaderBarIcon*/ } = mapMangledModuleLazy(".HEADER_BAR_BADGE_TOP:", {
+    HeaderBarIcon: filters.componentByCode('"aria-haspopup":'),
+    HeaderBar: filters.byCode("toolbar:", 'section"'),
 });
 
 // from toolbox
-const HeaderBarIcon = findComponentByCodeLazy(".HEADER_BAR_BADGE_TOP:", '.iconBadge,"top"');
+const HeaderBarIcon = findComponentByCodeLazy(".HEADER_BAR_BADGE_TOP:", '"aria-haspopup":');
 
 const { ForumView } = mapMangledModuleLazy("forum-grid-header-section-", {
     ForumView: filters.byCode("sidebarState")
@@ -78,17 +78,14 @@ const WindowLaunchIcon = findComponentByCodeLazy("1-1h6a1 1 0 1 0 0-2H5Z");
 const XSmallIcon = findComponentByCodeLazy("1.4L12 13.42l5.3 5.3Z");
 const Chat = findComponentByCodeLazy("filterAfterTimestamp:", "chatInputType");
 const Resize = findComponentByCodeLazy("sidebarType:", "RESIZE_HANDLE_WIDTH)");
-const ChannelHeader = findComponentByCodeLazy(".forumPostTitle]:", '"channel-".concat');
+const ChannelHeader = findComponentByCodeLazy('"channel-".concat');
 const PopoutWindow = findComponentByCodeLazy("Missing guestWindow reference");
 const FullChannelView = findComponentByCodeLazy("showFollowButton:(null");
 const WanderingCubesLoading = findComponentByCodeLazy('="wanderingCubes"');
 
-// love
-const ppStyle = findLazy(m => m.popoutContent && Object.keys(m).length === 1);
-
 const ChatInputTypes = findByPropsLazy("FORM", "NORMAL");
 const Sidebars = findByPropsLazy("ThreadSidebar", "MessageRequestSidebar");
-const ChatClasses = findByPropsLazy("threadSidebarOpen");
+const ChatClasses = findCssClassesLazy("threadSidebarOpen", "loader");
 
 const ChannelSectionStore = findStoreLazy("ChannelSectionStore");
 
@@ -348,7 +345,6 @@ const RenderPopout = ErrorBoundary.wrap(({ channel, name }: { channel: Channel; 
             windowKey={`DISCORD_VC_SC-${channel.id}`}
             title={name || "Vencord"}
             channelId={channel.id}
-            contentClassName={ppStyle.popoutContent}
         >
             <FullChannelView providedChannel={channel} />
         </PopoutWindow>
