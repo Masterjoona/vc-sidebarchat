@@ -80,7 +80,7 @@ const Chat = findComponentByCodeLazy("filterAfterTimestamp:", "chatInputType");
 const Resize = findComponentByCodeLazy("sidebarType:", "RESIZE_HANDLE_WIDTH)");
 const ChannelHeader = findComponentByCodeLazy("`channel-${");
 const PopoutWindow = findComponentByCodeLazy("Missing guestWindow reference");
-const FullChannelView = findComponentByCodeLazy("showFollowButton:(null");
+const FullChannelView = findComponentByCodeLazy("showFollowButton:");
 const WanderingCubesLoading = findComponentByCodeLazy('="wanderingCubes"');
 
 const ChatInputTypes = findByPropsLazy("FORM", "NORMAL");
@@ -91,7 +91,7 @@ const ChannelSectionStore = findStoreLazy("ChannelSectionStore");
 
 const requireChannelContextMenu = extractAndLoadChunksLazy(
     ["&&this.handleActivitiesPopoutClose(),"],
-    new RegExp(DefaultExtractAndLoadChunksRegex.source + ".{1,150}isFavorite")
+    new RegExp(DefaultExtractAndLoadChunksRegex.source + ".{1,60}renderChannelInfo")
 );
 
 const requireForumView = extractAndLoadChunksLazy(
@@ -145,15 +145,15 @@ export default definePlugin({
             group: true,
             replacement: [
                 {
-                    match: /channel_renderer"\);/,
-                    replace: "$&const vc_SidebarChat=$self.renderSidebar();"
+                    match: /ChannelRenderer"\),/,
+                    replace: "$&vc_SidebarChat=$self.renderSidebar();"
                 },
                 {
                     match: /return(\(0,\i\.jsxs?\)\(\i\.\i,{}\))}/,
                     replace: "return [$1, vc_SidebarChat]}"
                 },
                 {
-                    match: /(case \i\.\i.+?return)(.+?);(?=.+?params\.messageId)(?<=channel_renderer".+?)/g,
+                    match: /(case \i\.\i.+?return)(.+?);(?=.+?params\.messageId)(?<=ChannelRenderer".+?)/g,
                     replace: "$1[$2, vc_SidebarChat];",
                     predicate: () => settings.store.patchCommunity
                 }
