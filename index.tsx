@@ -146,17 +146,17 @@ export default definePlugin({
             replacement: [
                 {
                     match: /ChannelRenderer"\),/,
-                    replace: "$&vc_SidebarChat=$self.renderSidebar();"
+                    replace: "$&vc_SidebarChat=$self.renderSidebar(),"
                 },
                 {
                     match: /return(\(0,\i\.jsxs?\)\(\i\.\i,{}\))}/,
                     replace: "return [$1, vc_SidebarChat]}"
                 },
-                {
+                /*{
                     match: /(case \i\.\i.+?return)(.+?);(?=.+?params\.messageId)(?<=ChannelRenderer".+?)/g,
                     replace: "$1[$2, vc_SidebarChat];",
-                    predicate: () => settings.store.patchCommunity
-                }
+                    predicate: () => settings.store.patchCommunity,
+                }*/
             ]
         },
     ],
@@ -231,7 +231,6 @@ export default definePlugin({
         useEffect(() => {
             if (!channel) return;
 
-            // @ts-expect-error
             if (channel.isForumLikeChannel()) {
                 requireForumView().then(() => {
                     setViewComponent(
