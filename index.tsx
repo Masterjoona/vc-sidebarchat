@@ -94,19 +94,31 @@ const requireForumView = extractAndLoadChunksLazy(
 );
 
 const MakeContextMenu = (id: string, guildId: string | null) => {
+    const openSidebar = () => FluxDispatcher.dispatch({
+        // @ts-ignore
+        type: "VC_SIDEBAR_CHAT_NEW",
+        guildId,
+        id,
+    });
+
     return (
-        <Menu.MenuItem
-            id={`vc-sidebar-chat-${id}`}
-            label={"Open Sidebar Chat"}
-            action={() => {
-                FluxDispatcher.dispatch({
-                    // @ts-ignore
-                    type: "VC_SIDEBAR_CHAT_NEW",
-                    guildId,
-                    id,
-                });
-            }}
-        />
+        <Menu.MenuItem id="vc-sidebar-chat-menu" label="Open Sidebar Chat" action={openSidebar}>
+            <Menu.MenuItem
+                id={`vc-sidebar-chat-${id}-popout`}
+                label={"Popout Chat"}
+                action={() => {
+                    const channel = ChannelStore.getChannel(id);
+                    PopoutActions.open(
+                        `DISCORD_VC_SC-${id}`,
+                        () => <RenderPopout channel={channel} name={channel?.name} />,
+                        {
+                            defaultWidth: 854,
+                            defaultHeight: 480,
+                        }
+                    );
+                }}
+            />
+        </Menu.MenuItem>
     );
 };
 
@@ -143,8 +155,8 @@ export default definePlugin({
                     replace: "$&vc_SidebarChat=$self.renderSidebar(),"
                 },
                 {
-                    match: /return(\(0,\i\.jsxs?\)\(.{1,4},{}\))}(?<=default:.{1,250})/,
-                    replace: "return [$1, vc_SidebarChat]}"
+                    match: /(params\.messageId\);.{1,150})(\(0,\i\.jsxs?\)\(.{1,4},{}\))/,
+                    replace: "$1[$2, vc_SidebarChat]"
                 },
                 /* {
                     match: /(case \i\.\i.+?return)(.+?);(?=.+?params\.messageId)(?<=ChannelRenderer".+?)/g,
