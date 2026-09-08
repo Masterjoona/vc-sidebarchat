@@ -323,11 +323,11 @@ const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
     return (
         <HeaderBar
             toolbar={
-                <>
+                <div className="vc-sidebarchat-toolbar">
                     <HeaderBarIcon icon={ArrowsLeftRightIcon} tooltip="Switch channels" onClick={switchChannels} />
                     <HeaderBarIcon icon={WindowLaunchIcon} tooltip="Popout Chat" onClick={openPopout} />
                     <HeaderBarIcon icon={XSmallIcon} tooltip="Close Sidebar Chat" onClick={closeSidebar} />
-                </>
+                </div>
             }
         >
             <ChannelHeader

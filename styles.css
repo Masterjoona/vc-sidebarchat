@@ -1,3 +1,10 @@
 [class*="content"] > [class*="page"] > * {
     min-width: 0;
 }
+
+.vc-sidebarchat-toolbar {
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
