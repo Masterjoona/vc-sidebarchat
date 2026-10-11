@@ -28,6 +28,17 @@ export const settings = definePluginSettings({
     }
 });
 
+export async function getChannel(id: string) {
+    const cachedChannel = ChannelStore.getChannel(id);
+    if (cachedChannel) {
+        return cachedChannel;
+    }
+
+    const resolvedId = await ChannelActionCreators.getOrEnsurePrivateChannel(id);
+
+    return ChannelStore.getChannel(resolvedId);
+}
+
 export const SidebarStore = proxyLazy(() => {
     const current = {
         guildId: "",
@@ -67,7 +78,7 @@ export const SidebarStore = proxyLazy(() => {
                 return;
             }
 
-            current.channelId = ChannelStore.getChannel(id)?.id ?? await ChannelActionCreators.getOrEnsurePrivateChannel(id);
+            current.channelId = (await getChannel(id)).id;
             store.emitChange();
         },
 

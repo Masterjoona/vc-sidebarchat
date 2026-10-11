@@ -44,7 +44,7 @@ import {
     useStateFromStores,
 } from "@webpack/common";
 
-import { settings, SidebarStore } from "./store";
+import { getChannel, settings, SidebarStore } from "./store";
 
 // ??? no clue why this HeaderBarIcon doesnt work, its the same as the one below
 const { HeaderBar, /* HeaderBarIcon*/ } = mapMangledModuleLazy(".HEADER_BAR_BADGE_TOP:", {
@@ -93,29 +93,22 @@ const requireForumView = extractAndLoadChunksLazy(
     /Promise\.all\(\[((?:\i\.e\("\d+"\),?)+)\]\)\.then\(\i\.bind\(\i,(\d+)\)\)[^}]{0,100}?name:"ForumChannel"/
 );
 
-const MakeContextMenu = (id: string, guildId: string | null) => {
-    const openSidebar = () => FluxDispatcher.dispatch({
-        // @ts-ignore
-        type: "VC_SIDEBAR_CHAT_NEW",
-        guildId,
-        id,
-    });
+const openSidebar = (id: string, guildId: string | null) => FluxDispatcher.dispatch({
+    // @ts-ignore
+    type: "VC_SIDEBAR_CHAT_NEW",
+    guildId,
+    id,
+});
 
+const MakeContextMenu = (id: string, guildId: string | null) => {
     return (
-        <Menu.MenuItem id="vc-sidebar-chat-menu" label="Open Sidebar Chat" action={openSidebar}>
+        <Menu.MenuItem id="vc-sidebar-chat-menu" label="Open Sidebar Chat" action={() => openSidebar(id, guildId)}>
             <Menu.MenuItem
                 id={`vc-sidebar-chat-${id}-popout`}
                 label={"Popout Chat"}
-                action={() => {
-                    const channel = ChannelStore.getChannel(id);
-                    PopoutActions.open(
-                        `DISCORD_VC_SC-${id}`,
-                        () => <RenderPopout channel={channel} name={channel?.name} />,
-                        {
-                            defaultWidth: 854,
-                            defaultHeight: 480,
-                        }
-                    );
+                action={async () => {
+                    const channel = await getChannel(id);
+                    openPopout(channel);
                 }}
             />
         </Menu.MenuItem>
@@ -296,27 +289,11 @@ const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
     );
 
     // @ts-ignore
-    const closeSidebar = () => FluxDispatcher.dispatch({ type: "VC_SIDEBAR_CHAT_CLOSE", });
-
-    const openPopout = useCallback(async () => {
-        PopoutActions.open(
-            `DISCORD_VC_SC-${channel.id}`,
-            () => <RenderPopout channel={channel} name={name} />,
-            {
-                defaultWidth: 854,
-                defaultHeight: 480,
-            }
-        );
-    }, [channel, name]);
+    const closeSidebar = () => FluxDispatcher.dispatch({ type: "VC_SIDEBAR_CHAT_CLOSE" });
 
     const switchChannels = useCallback(() => {
         const mainChannel = getCurrentChannel()!;
-        FluxDispatcher.dispatch({
-            // @ts-ignore
-            type: "VC_SIDEBAR_CHAT_NEW",
-            guildId: mainChannel.guild_id,
-            id: mainChannel.id,
-        });
+        openSidebar(mainChannel.id, mainChannel.guild_id);
         ChannelRouter.transitionToChannel(channel.id);
     }, [channel.id]);
 
@@ -325,7 +302,7 @@ const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
             toolbar={
                 <>
                     <HeaderBarIcon icon={ArrowsLeftRightIcon} tooltip="Switch channels" onClick={switchChannels} />
-                    <HeaderBarIcon icon={WindowLaunchIcon} tooltip="Popout Chat" onClick={openPopout} />
+                    <HeaderBarIcon icon={WindowLaunchIcon} tooltip="Popout Chat" onClick={() => openPopout(channel)} />
                     <HeaderBarIcon icon={XSmallIcon} tooltip="Close Sidebar Chat" onClick={closeSidebar} />
                 </>
             }
@@ -340,17 +317,22 @@ const Header = ({ guild, channel }: { guild: Guild; channel: Channel; }) => {
     );
 };
 
-const RenderPopout = ErrorBoundary.wrap(({ channel, name }: { channel: Channel; name: string; }) => {
-    // Copy from an unexported function of the one they use in the experiment
-    // right click a channel and search withTitleBar:!0,windowKey
-    return (
-        <PopoutWindow
-            withTitleBar
-            windowKey={`DISCORD_VC_SC-${channel.id}`}
-            title={name || "Vencord"}
-            channelId={channel.id}
-        >
-            <FullChannelView providedChannel={channel} />
-        </PopoutWindow>
+const openPopout = (channel: Channel) => {
+    PopoutActions.open(
+        `DISCORD_VC_SC-${channel.id}`,
+        () => (
+            <PopoutWindow
+                withTitleBar
+                windowKey={`DISCORD_VC_SC-${channel.id}`}
+                title={channel.name || "Vencord"}
+                channelId={channel.id}
+            >
+                <FullChannelView providedChannel={channel} />
+            </PopoutWindow>
+        ),
+        {
+            defaultWidth: 854,
+            defaultHeight: 480,
+        }
     );
-});
+};
